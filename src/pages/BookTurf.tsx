@@ -94,21 +94,27 @@ export default function BookTurf() {
       const response = await fetch(`/api/bookings?bookingId=${bId}`);
       const result = await response.json();
 
+      console.log(`[BookTurf] Polling status for ${bId}:`, result.status);
+
       if (result.status === "completed") {
+        console.log("[BookTurf] ✅ Payment confirmed!");
         setPaymentState("success");
         if (pollingIntervalRef.current) {
           clearInterval(pollingIntervalRef.current);
         }
         toast.success("Payment successful! Booking confirmed.");
       } else if (result.status === "failed") {
+        console.log("[BookTurf] ❌ Payment failed");
         setPaymentState("failed");
         if (pollingIntervalRef.current) {
           clearInterval(pollingIntervalRef.current);
         }
         toast.error("Payment failed. Please try again.");
+      } else {
+        console.log("[BookTurf] Payment still pending...");
       }
     } catch (error) {
-      console.error("Error polling booking status:", error);
+      console.error("[BookTurf] Error polling booking status:", error);
     }
   };
 
@@ -162,14 +168,32 @@ export default function BookTurf() {
 
       setPaymentState("processing");
 
-      // Step 2: Start polling for payment confirmation
+      // Start polling for payment confirmation (timeout after 5 minutes)
+      let pollCount = 0;
+      const maxPolls = 100; // 100 polls × 3 seconds = 5 minutes
+      
       pollingIntervalRef.current = setInterval(() => {
+        pollCount++;
+        console.log(`[BookTurf] Poll attempt ${pollCount}/${maxPolls}`);
+        
+        if (pollCount > maxPolls) {
+          // Timeout - stop polling
+          console.log("[BookTurf] ⏱️ Polling timeout reached");
+          if (pollingIntervalRef.current) {
+            clearInterval(pollingIntervalRef.current);
+          }
+          setPaymentState("failed");
+          toast.error("Payment confirmation timeout. Please check your M-Pesa or try again.");
+          return;
+        }
+        
         pollBookingStatus(newBookingId);
       }, 3000);
     } catch (error: any) {
-      console.error(error);
+      console.error("[BookTurf] Error in handleBook:", error);
       toast.error(error?.message || "Unable to process payment");
       setIsSubmitting(false);
+      setPaymentState("failed");
     }
   };
 
