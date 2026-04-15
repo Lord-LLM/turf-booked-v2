@@ -59,10 +59,6 @@ async function initiateStkPush(req: any, res: any) {
       ? `https://${process.env.VERCEL_URL}`
       : process.env.CALLBACK_URL || "https://turf-booked-v2.vercel.app";
 
-    const callBackURL = `${baseUrl}/api/mpesa`;
-
-    console.log(`[M-Pesa] STK Push Callback URL: ${callBackURL}`);
-
     const stkPushPayload = {
       BusinessShortCode: process.env.MPESA_SHORTCODE,
       Password: password,
@@ -72,7 +68,7 @@ async function initiateStkPush(req: any, res: any) {
       PartyA: phoneNumber,
       PartyB: process.env.MPESA_SHORTCODE,
       PhoneNumber: phoneNumber,
-      CallBackURL: callBackURL,
+      CallBackURL: `${baseUrl}/api/mpesa`,
       AccountReference: bookingId,
       TransactionDesc: `Turf Booking ${bookingId}`,
     };
@@ -122,96 +118,78 @@ async function initiateStkPush(req: any, res: any) {
 
 async function handleCallback(req: any, res: any) {
   // Immediately return 200 to prevent Safaricom retries
-  console.log("[M-Pesa] ✅ Callback received from Safaricom");
-  console.log("[M-Pesa] Callback request body:", JSON.stringify(req.body, null, 2));
-  
   res.status(200).json({ success: true });
 
-  // Process asynchronously (after response is sent)
-  setImmediate(async () => {
-    try {
-      const { Body } = req.body;
+  // Process asynchronously
+  try {
+    const { Body } = req.body;
 
-      if (!Body || !Body.stkCallback) {
-        console.error("[M-Pesa] Invalid callback payload structure");
-        console.error("[M-Pesa] Expected Body.stkCallback, received:", JSON.stringify(req.body, null, 2));
-        return;
-      }
-
-      const stkCallback = Body.stkCallback;
-      const { CheckoutRequestID, ResultCode, CallbackMetadata } = stkCallback;
-
-      console.log(`[M-Pesa] Processing callback for CheckoutRequestID: ${CheckoutRequestID}`);
-      console.log(`[M-Pesa] Result Code: ${ResultCode} (0 = success, non-zero = failure)`);
-
-      await connectToDatabase();
-
-      const booking = await Booking.findOne({ checkoutRequestId: CheckoutRequestID });
-
-      if (!booking) {
-        console.error(`[M-Pesa] ❌ Booking not found for CheckoutRequestID: ${CheckoutRequestID}`);
-        console.error("[M-Pesa] Searching database for checkoutRequestId:", CheckoutRequestID);
-        return;
-      }
-
-      console.log(`[M-Pesa] Found booking: ${booking._id}`);
-
-      if (ResultCode === 0) {
-        // Payment successful
-        console.log(`[M-Pesa] ✅ Payment successful for booking ${booking._id}`);
-        
-        const callbackMetadata = CallbackMetadata?.Item || [];
-
-        let mpesaReceiptNumber = "";
-        let phoneNumber = "";
-        let amount = 0;
-
-        for (const item of callbackMetadata) {
-          if (item.Name === "MpesaReceiptNumber") {
-            mpesaReceiptNumber = item.Value;
-          }
-          if (item.Name === "PhoneNumber") {
-            phoneNumber = item.Value;
-          }
-          if (item.Name === "Amount") {
-            amount = item.Value;
-          }
-        }
-
-        console.log(`[M-Pesa] Receipt: ${mpesaReceiptNumber}, Amount: ${amount}, Phone: ${phoneNumber}`);
-
-        // Create payment record
-        const payment = new Payment({
-          mpesaReceiptNumber,
-          phoneNumber,
-          amount,
-          status: "Completed",
-        });
-
-        await payment.save();
-        console.log(`[M-Pesa] ✅ Payment record created: ${payment._id}`);
-
-        // Update booking with payment details
-        const updatedBooking = await Booking.findByIdAndUpdate(booking._id, {
-          paymentStatus: "completed",
-          mpesaReceiptNumber,
-          paymentId: payment._id,
-        }, { new: true });
-
-        console.log(`[M-Pesa] ✅ Booking ${booking._id} marked as completed. New status: ${updatedBooking?.paymentStatus}`);
-      } else {
-        // Payment failed
-        console.error(`[M-Pesa] ❌ Payment failed for booking ${booking._id} with ResultCode: ${ResultCode}`);
-        
-        const updatedBooking = await Booking.findByIdAndUpdate(booking._id, {
-          paymentStatus: "failed",
-        }, { new: true });
-
-        console.log(`[M-Pesa] Booking ${booking._id} marked as failed. New status: ${updatedBooking?.paymentStatus}`);
-      }
-    } catch (error: any) {
-      console.error("[M-Pesa] ❌ Error processing callback:", error.message);
-      console.error("[M-Pesa] Stack trace:", error.stack);
+    if (!Body || !Body.stkCallback) {
+      console.log("Invalid callback payload");
+      return;
     }
-  });
+
+    const stkCallback = Body.stkCallback;
+    const { CheckoutRequestID, ResultCode, CallbackMetadata } = stkCallback;
+
+    await connectToDatabase();
+
+    const booking = await Booking.findOne({ checkoutRequestId: CheckoutRequestID });
+
+    if (!booking) {
+      console.log(`Booking not found for CheckoutRequestID: ${CheckoutRequestID}`);
+      return;
+    }
+
+    if (ResultCode === 0) {
+      // Payment successful
+      const callbackMetadata = CallbackMetadata.Item;
+
+      let mpesaReceiptNumber = "";
+      let phoneNumber = "";
+      let amount = 0;
+
+      for (const item of callbackMetadata) {
+        if (item.Name === "MpesaReceiptNumber") {
+          mpesaReceiptNumber = item.Value;
+        }
+        if (item.Name === "PhoneNumber") {
+          phoneNumber = item.Value;
+        }
+        if (item.Name === "Amount") {
+          amount = item.Value;
+        }
+      }
+
+      // Create payment record
+      const payment = new Payment({
+        mpesaReceiptNumber,
+        phoneNumber,
+        amount,
+        status: "Completed",
+      });
+
+      await payment.save();
+
+      // Update booking with payment details
+      await Booking.findByIdAndUpdate(booking._id, {
+        paymentStatus: "completed",
+        mpesaReceiptNumber,
+        paymentId: payment._id,
+      });
+
+      console.log(
+        `Payment successful for booking ${booking._id}: ${mpesaReceiptNumber}`
+      );
+    } else {
+      // Payment failed
+      await Booking.findByIdAndUpdate(booking._id, {
+        paymentStatus: "failed",
+      });
+
+      console.log(`Payment failed for booking ${booking._id}: ${ResultCode}`);
+    }
+  } catch (error: any) {
+    console.error("Error processing callback:", error);
+  }
 }

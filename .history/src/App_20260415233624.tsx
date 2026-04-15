@@ -27,7 +27,6 @@ const App = () => (
             <Route path="/turfs" element={<AboutTurfs />} />
             <Route path="/browse" element={<Navigate to="/turfs" replace />} />
             <Route path="/book/:id" element={<BookTurf />} />
-            <Route path="/mybookings" element={<MyBookings />} />
             <Route path="/how-it-works" element={<HowItWorksPage />} />
             <Route path="/signup" element={<SignUp />} />
             <Route path="/signin" element={<SignIn />} />
