@@ -41,7 +41,7 @@ export const turfs: Turf[] = [
     name: "DeKUT Green Pitch",
     location: "Nyeri, DeKUT Campus",
     image: turf2,
-    pricePerHour: 1500,
+    pricePerHour: 1,
     rating: 4.5,
     reviews: 87,
     type: "Full Size",
