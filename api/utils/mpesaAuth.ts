@@ -19,6 +19,9 @@ let tokenCache = {
  * Generates an access token from Safaricom M-Pesa API
  * Tokens are cached for 3595 seconds (just under the 3600 second validity)
  * to avoid unnecessary API calls.
+ * 
+ * This function includes robust credential handling and detailed error logging
+ * to diagnose Safaricom OAuth issues.
  */
 export async function getMpesaAccessToken(): Promise<string> {
   const now = Date.now();
@@ -30,59 +33,73 @@ export async function getMpesaAccessToken(): Promise<string> {
   }
 
   try {
-    console.log("[M-Pesa] Generating new access token...");
+    console.log("[M-Pesa] Generating new access token from Safaricom...");
 
-    // Validate credentials are present
-    if (!MPESA_CONSUMER_KEY) {
-      throw new Error("MPESA_CONSUMER_KEY is missing from environment variables");
+    // Get credentials from environment and trim any hidden whitespace
+    const consumerKey = process.env.MPESA_CONSUMER_KEY?.trim();
+    const consumerSecret = process.env.MPESA_CONSUMER_SECRET?.trim();
+
+    if (!consumerKey) {
+      throw new Error("MPESA_CONSUMER_KEY is not defined or is empty");
     }
-    if (!MPESA_CONSUMER_SECRET) {
-      throw new Error("MPESA_CONSUMER_SECRET is missing from environment variables");
+    if (!consumerSecret) {
+      throw new Error("MPESA_CONSUMER_SECRET is not defined or is empty");
     }
 
-    // Create base64 encoded auth string
-    const authString = `${MPESA_CONSUMER_KEY}:${MPESA_CONSUMER_SECRET}`;
+    console.log("[M-Pesa] Credentials loaded and trimmed");
+
+    // Create base64 encoded auth string using Buffer for Node.js
+    const authString = `${consumerKey}:${consumerSecret}`;
     const auth = Buffer.from(authString).toString("base64");
 
-    console.log("[M-Pesa] Auth header prepared (base64 encoded)");
+    console.log("[M-Pesa] Authorization header prepared (Basic auth with base64)");
 
     // Request access token from Safaricom
     const url = "https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials";
-    console.log(`[M-Pesa] Requesting token from: ${url}`);
+    console.log("[M-Pesa] Sending OAuth request to Safaricom...");
 
     const response = await fetch(url, {
       method: "GET",
       headers: {
         Authorization: `Basic ${auth}`,
-        "Content-Type": "application/json",
       },
     });
 
-    console.log(`[M-Pesa] OAuth response status: ${response.status}`);
+    console.log(`[M-Pesa] Safaricom response status: ${response.status}`);
 
+    // Always attempt to parse response as JSON for detailed error messages
+    let data: any;
+    try {
+      data = await response.json();
+    } catch {
+      // If JSON parse fails, get text response
+      const text = await response.text();
+      console.error("[M-Pesa] Failed to parse Safaricom response as JSON:", text);
+      throw new Error(`Safaricom returned invalid JSON: ${text}`);
+    }
+
+    // Check for errors in the response
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`[M-Pesa] OAuth error response (${response.status}):`, errorText);
+      console.error("[M-Pesa] Safaricom Error Response:", JSON.stringify(data));
       throw new Error(
-        `Safaricom OAuth failed (${response.status}): ${errorText}`
+        data.errorMessage || data.error || `OAuth failed with status ${response.status}`
       );
     }
 
-    const data = await response.json();
-
+    // Validate access token is present
     if (!data.access_token) {
-      console.error("[M-Pesa] No access_token in response:", JSON.stringify(data));
-      throw new Error("No access_token in Safaricom response");
+      console.error("[M-Pesa] No access_token in successful response:", JSON.stringify(data));
+      throw new Error("Safaricom response successful but no access_token provided");
     }
 
-    // Cache the token for 3595 seconds (just under 3600)
+    // Cache the token for 3595 seconds (just under 3600 second expiry)
     tokenCache.token = data.access_token;
     tokenCache.expiresAt = now + 3595 * 1000;
 
-    console.log("[M-Pesa] Access token generated and cached successfully");
+    console.log("[M-Pesa] ✅ Access token generated and cached successfully");
     return data.access_token;
   } catch (error: any) {
-    console.error("[M-Pesa] Token generation error:", error.message);
+    console.error("[M-Pesa] ❌ Token generation failed:", error.message);
     throw new Error(`Failed to get M-Pesa access token: ${error.message}`);
   }
 }
