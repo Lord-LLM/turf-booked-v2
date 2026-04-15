@@ -81,15 +81,24 @@ async function createBooking(req: any, res: any) {
 
     if (!userId || !turfId || !date || !startTime || !endTime || !totalAmount) {
       return res.status(400).json({
-        error: "Missing required fields",
+        error: "Missing required fields: userId, turfId, date, startTime, endTime, totalAmount",
       });
     }
 
     await connectToDatabase();
 
-    const user = await User.findById(userId);
+    // For Auth0 users, create a minimal user record if it doesn't exist
+    let user = await User.findById(userId);
     if (!user) {
-      return res.status(404).json({ error: "User not found" });
+      // Create a new user from Auth0 ID
+      user = new User({
+        _id: userId,
+        name: "Auth0 User",
+        email: `${userId}@auth0.local`,
+        phone: "",
+      });
+      await user.save();
+      console.log(`Created new user for Auth0 ID: ${userId}`);
     }
 
     const booking = new Booking({

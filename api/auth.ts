@@ -27,7 +27,11 @@ export default async function handler(req: any, res: any) {
         return res.status(409).json({ error: "User already exists" });
       }
 
+      // Use auth0Id if provided, otherwise generate a unique ID
+      const userId = auth0Id || `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
       const newUser = new User({
+        _id: userId,
         name,
         email,
         phone,
