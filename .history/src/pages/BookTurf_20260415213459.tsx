@@ -91,7 +91,7 @@ export default function BookTurf() {
 
   const pollBookingStatus = async (bId: string) => {
     try {
-      const response = await fetch(`/api/bookings?bookingId=${bId}`);
+      const response = await fetch(`/api/bookings/${bId}/status`);
       const result = await response.json();
 
       if (result.status === "completed") {

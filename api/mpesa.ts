@@ -1,0 +1,190 @@
+import { connectToDatabase } from "./db.js";
+import { Booking } from "./models/Booking.js";
+import { Payment } from "./models/Payment.js";
+import {
+  getMpesaAccessToken,
+  generateMpesaPassword,
+  generateTimestamp,
+} from "./utils/mpesaAuth.js";
+
+export default async function handler(req: any, res: any) {
+  const { action } = req.query;
+
+  if (req.method === "POST") {
+    if (action === "stkpush") {
+      return await initiateStkPush(req, res);
+    } else {
+      // Default POST is callback
+      return await handleCallback(req, res);
+    }
+  } else {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
+}
+
+async function initiateStkPush(req: any, res: any) {
+  try {
+    const { bookingId, phoneNumber, amount } = req.body;
+
+    if (!bookingId || !phoneNumber || !amount) {
+      return res.status(400).json({
+        error: "Missing required fields: bookingId, phoneNumber, amount",
+      });
+    }
+
+    // Validate phone number format (254XXXXXXXXX)
+    const phoneRegex = /^254\d{9}$/;
+    if (!phoneRegex.test(phoneNumber)) {
+      return res.status(400).json({
+        error: "Invalid phone format. Use format: 254XXXXXXXXX",
+      });
+    }
+
+    await connectToDatabase();
+
+    const booking = await Booking.findById(bookingId);
+    if (!booking) {
+      return res.status(404).json({ error: "Booking not found" });
+    }
+
+    const timestamp = generateTimestamp();
+    const password = generateMpesaPassword(timestamp);
+    const accessToken = await getMpesaAccessToken();
+
+    const stkPushUrl =
+      "https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest";
+
+    const stkPushPayload = {
+      BusinessShortCode: process.env.MPESA_SHORTCODE,
+      Password: password,
+      Timestamp: timestamp,
+      TransactionType: "CustomerPayBillOnline",
+      Amount: Math.round(amount),
+      PartyA: phoneNumber,
+      PartyB: process.env.MPESA_SHORTCODE,
+      PhoneNumber: phoneNumber,
+      CallBackURL: `${process.env.CALLBACK_URL || "https://turf-booked-v2.vercel.app"}/api/mpesa`,
+      AccountReference: bookingId,
+      TransactionDesc: `Turf Booking ${bookingId}`,
+    };
+
+    const stkPushResponse = await fetch(stkPushUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify(stkPushPayload),
+    });
+
+    const responseData = await stkPushResponse.json();
+
+    if (
+      responseData.ResponseCode === "0" ||
+      responseData.ResponseCode === "0000"
+    ) {
+      const checkoutRequestId = responseData.CheckoutRequestID;
+
+      await Booking.findByIdAndUpdate(bookingId, {
+        paymentStatus: "processing",
+        checkoutRequestId,
+        mpesaPhone: phoneNumber,
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: "STK Push sent successfully",
+        checkoutRequestId,
+      });
+    } else {
+      return res.status(400).json({
+        error: "Failed to initiate STK Push",
+        details: responseData,
+      });
+    }
+  } catch (error: any) {
+    console.error("Error initiating STK Push:", error);
+    return res.status(500).json({
+      error: "Failed to initiate STK Push",
+      details: error.message,
+    });
+  }
+}
+
+async function handleCallback(req: any, res: any) {
+  // Immediately return 200 to prevent Safaricom retries
+  res.status(200).json({ success: true });
+
+  // Process asynchronously
+  try {
+    const { Body } = req.body;
+
+    if (!Body || !Body.stkCallback) {
+      console.log("Invalid callback payload");
+      return;
+    }
+
+    const stkCallback = Body.stkCallback;
+    const { CheckoutRequestID, ResultCode, CallbackMetadata } = stkCallback;
+
+    await connectToDatabase();
+
+    const booking = await Booking.findOne({ checkoutRequestId: CheckoutRequestID });
+
+    if (!booking) {
+      console.log(`Booking not found for CheckoutRequestID: ${CheckoutRequestID}`);
+      return;
+    }
+
+    if (ResultCode === 0) {
+      // Payment successful
+      const callbackMetadata = CallbackMetadata.Item;
+
+      let mpesaReceiptNumber = "";
+      let phoneNumber = "";
+      let amount = 0;
+
+      for (const item of callbackMetadata) {
+        if (item.Name === "MpesaReceiptNumber") {
+          mpesaReceiptNumber = item.Value;
+        }
+        if (item.Name === "PhoneNumber") {
+          phoneNumber = item.Value;
+        }
+        if (item.Name === "Amount") {
+          amount = item.Value;
+        }
+      }
+
+      // Create payment record
+      const payment = new Payment({
+        mpesaReceiptNumber,
+        phoneNumber,
+        amount,
+        status: "Completed",
+      });
+
+      await payment.save();
+
+      // Update booking with payment details
+      await Booking.findByIdAndUpdate(booking._id, {
+        paymentStatus: "completed",
+        mpesaReceiptNumber,
+        paymentId: payment._id,
+      });
+
+      console.log(
+        `Payment successful for booking ${booking._id}: ${mpesaReceiptNumber}`
+      );
+    } else {
+      // Payment failed
+      await Booking.findByIdAndUpdate(booking._id, {
+        paymentStatus: "failed",
+      });
+
+      console.log(`Payment failed for booking ${booking._id}: ${ResultCode}`);
+    }
+  } catch (error: any) {
+    console.error("Error processing callback:", error);
+  }
+}
