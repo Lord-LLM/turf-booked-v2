@@ -1,13 +1,13 @@
 import mongoose, { Schema, Document } from "mongoose";
 
 export interface IBooking extends Document {
-  userId: mongoose.Types.ObjectId;
+  userId: string; // Auth0 user ID
   turfId: string;
   date: Date;
   startTime: string;
   endTime: string;
   totalAmount: number;
-  paymentId?: mongoose.Types.ObjectId;
+  paymentId?: string;
   paymentStatus: "pending" | "completed" | "failed";
   checkoutRequestId?: string;
   mpesaPhone?: string;
@@ -19,8 +19,7 @@ export interface IBooking extends Document {
 const bookingSchema = new Schema<IBooking>(
   {
     userId: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
+      type: String,
       required: true,
     },
     turfId: {
@@ -47,8 +46,7 @@ const bookingSchema = new Schema<IBooking>(
       min: 0,
     },
     paymentId: {
-      type: Schema.Types.ObjectId,
-      ref: "Payment",
+      type: String,
     },
     paymentStatus: {
       type: String,

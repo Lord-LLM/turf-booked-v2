@@ -1,6 +1,7 @@
 import mongoose, { Schema, Document } from "mongoose";
 
 export interface IUser extends Document {
+  _id: string; // Auth0 ID or custom string
   name: string;
   email: string;
   phone: string;
@@ -11,6 +12,10 @@ export interface IUser extends Document {
 
 const userSchema = new Schema<IUser>(
   {
+    _id: {
+      type: String,
+      required: true,
+    },
     name: {
       type: String,
       required: true,
