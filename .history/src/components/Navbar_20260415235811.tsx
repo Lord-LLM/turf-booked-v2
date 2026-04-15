@@ -101,6 +101,15 @@ export function Navbar() {
                   {link.label}
                 </Link>
               ))}
+              {isAuthenticated && (
+                <Link
+                  to="/mybookings"
+                  onClick={() => setOpen(false)}
+                  className="rounded-lg px-4 py-3 text-sm font-medium text-foreground hover:bg-muted"
+                >
+                  My Bookings
+                </Link>
+              )}
               <div className="flex gap-2 pt-2 flex-col">
                 <ThemeToggle />
                 {!isLoading && (

@@ -26,19 +26,15 @@ export default function BookTurf() {
   const [paymentState, setPaymentState] = useState<"idle" | "processing" | "success" | "failed">("idle");
   const [bookingId, setBookingId] = useState<string | null>(null);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const demoTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const slots = useMemo(() => generateTimeSlots(date || new Date()), [date]);
 
-  // Cleanup polling and demo timeout on unmount
+  // Cleanup polling on unmount
   useEffect(() => {
     return () => {
       if (pollingIntervalRef.current) {
         clearInterval(pollingIntervalRef.current);
-      }
-      if (demoTimeoutRef.current) {
-        clearTimeout(demoTimeoutRef.current);
       }
     };
   }, []);
@@ -178,16 +174,6 @@ export default function BookTurf() {
 
       setPaymentState("processing");
 
-      // DEMO MODE: Auto-complete after 17 seconds for demonstration
-      demoTimeoutRef.current = setTimeout(() => {
-        console.log("[BookTurf] 🎬 DEMO MODE: Auto-completing payment after 17 seconds");
-        setPaymentState("success");
-        if (pollingIntervalRef.current) {
-          clearInterval(pollingIntervalRef.current);
-        }
-        toast.success("Payment successful! Booking confirmed.");
-      }, 17000);
-
       // Start polling for payment confirmation (timeout after 5 minutes)
       let pollCount = 0;
       const maxPolls = 100; // 100 polls × 3 seconds = 5 minutes
@@ -224,7 +210,7 @@ export default function BookTurf() {
   };
 
   const handleViewBookings = () => {
-    navigate("/bookings");
+    navigate("/turfs");
   };
 
   return (

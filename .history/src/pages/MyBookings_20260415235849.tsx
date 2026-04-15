@@ -127,9 +127,9 @@ export default function MyBookings() {
           </div>
         ) : bookings.length === 0 ? (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-12">
-            <p className="text-muted-foreground mb-4">You don't have any confirmed bookings yet.</p>
+            <p className="text-muted-foreground mb-4">You haven't made any bookings yet.</p>
             <Link to="/turfs">
-              <Button variant="hero">Book a Turf</Button>
+              <Button variant="hero">Browse Turfs</Button>
             </Link>
           </motion.div>
         ) : (
@@ -167,7 +167,7 @@ export default function MyBookings() {
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <Badge className="bg-green-500">Confirmed</Badge>
+                    {getPaymentStatusBadge(booking.paymentStatus)}
                     <p className="text-xs text-muted-foreground">
                       {new Date(booking.createdAt).toLocaleDateString("en-KE")}
                     </p>

@@ -224,7 +224,7 @@ export default function BookTurf() {
   };
 
   const handleViewBookings = () => {
-    navigate("/bookings");
+    navigate("/turfs");
   };
 
   return (

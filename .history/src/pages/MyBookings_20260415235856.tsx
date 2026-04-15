@@ -167,7 +167,7 @@ export default function MyBookings() {
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <Badge className="bg-green-500">Confirmed</Badge>
+                    {getPaymentStatusBadge(booking.paymentStatus)}
                     <p className="text-xs text-muted-foreground">
                       {new Date(booking.createdAt).toLocaleDateString("en-KE")}
                     </p>

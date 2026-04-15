@@ -179,7 +179,7 @@ export default function BookTurf() {
       setPaymentState("processing");
 
       // DEMO MODE: Auto-complete after 17 seconds for demonstration
-      demoTimeoutRef.current = setTimeout(() => {
+      const demoTimeout = setTimeout(() => {
         console.log("[BookTurf] 🎬 DEMO MODE: Auto-completing payment after 17 seconds");
         setPaymentState("success");
         if (pollingIntervalRef.current) {
@@ -224,7 +224,7 @@ export default function BookTurf() {
   };
 
   const handleViewBookings = () => {
-    navigate("/bookings");
+    navigate("/turfs");
   };
 
   return (
