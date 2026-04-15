@@ -36,10 +36,10 @@ export default function MyBookings() {
     }
   }, [user]);
 
-  const fetchBookings = async (userId: string) => {
+  const fetchBookings = async () => {
     try {
       setIsLoadingBookings(true);
-      const response = await fetch(`/api/bookings?userId=${userId}`);
+      const response = await fetch(`/api/bookings?userId=${user?.sub}`);
 
       if (!response.ok) {
         throw new Error("Failed to fetch bookings");
