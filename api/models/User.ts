@@ -4,7 +4,7 @@ export interface IUser extends Document {
   _id: string; // Auth0 ID or custom string
   name: string;
   email: string;
-  phone: string;
+  phone?: string; // Optional phone field
   auth0Id?: string;
   createdAt: Date;
   updatedAt: Date;
@@ -29,7 +29,8 @@ const userSchema = new Schema<IUser>(
     },
     phone: {
       type: String,
-      required: true,
+      required: false,
+      default: "",
     },
     auth0Id: {
       type: String,

@@ -54,6 +54,11 @@ async function initiateStkPush(req: any, res: any) {
     const stkPushUrl =
       "https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest";
 
+    // Determine the callback URL based on environment
+    const baseUrl = process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
+      : process.env.CALLBACK_URL || "https://turf-booked-v2.vercel.app";
+
     const stkPushPayload = {
       BusinessShortCode: process.env.MPESA_SHORTCODE,
       Password: password,
@@ -63,7 +68,7 @@ async function initiateStkPush(req: any, res: any) {
       PartyA: phoneNumber,
       PartyB: process.env.MPESA_SHORTCODE,
       PhoneNumber: phoneNumber,
-      CallBackURL: `${process.env.CALLBACK_URL || "https://turf-booked-v2.vercel.app"}/api/mpesa`,
+      CallBackURL: `${baseUrl}/api/mpesa`,
       AccountReference: bookingId,
       TransactionDesc: `Turf Booking ${bookingId}`,
     };
