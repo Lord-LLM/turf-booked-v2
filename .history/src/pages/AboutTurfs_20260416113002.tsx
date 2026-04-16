@@ -37,26 +37,26 @@ export default function AboutTurfs() {
           >
             {/* Find a Turf Card */}
             <div className="group">
-              <div className="relative overflow-hidden rounded-2xl border border-border bg-card p-8 shadow-card transition-all hover:shadow-xl hover:border-primary/30 hover:-translate-y-1 cursor-pointer" onClick={() => window.location.href = "/turfs"}>
-                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-primary opacity-10 blur-3xl" />
-                <div className="relative">
-                  <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-primary shadow-hero mb-6">
-                    <Search className="h-7 w-7 text-primary-foreground" />
-                  </div>
-                  <h3 className="font-display text-2xl font-bold text-card-foreground mb-3">
-                    Find a Turf
-                  </h3>
-                  <p className="text-muted-foreground mb-6">
-                    Search by location, size, and price to find the perfect pitch for your game. Filter by amenities and availability.
-                  </p>
-                  <Link to="/turfs">
-                    <Button variant="hero" className="group-hover:scale-105 transition-transform">
+              <Link to="/turfs" className="block h-full">
+                <div className="relative overflow-hidden rounded-2xl border border-border bg-card p-8 shadow-card transition-all hover:shadow-xl hover:border-primary/30 hover:-translate-y-1 h-full">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-primary opacity-10 blur-3xl" />
+                  <div className="relative flex flex-col h-full">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-primary shadow-hero mb-6">
+                      <Search className="h-7 w-7 text-primary-foreground" />
+                    </div>
+                    <h3 className="font-display text-2xl font-bold text-card-foreground mb-3">
+                      Find a Turf
+                    </h3>
+                    <p className="text-muted-foreground mb-6 flex-1">
+                      Search by location, size, and price to find the perfect pitch for your game. Filter by amenities and availability.
+                    </p>
+                    <Button variant="hero" className="group-hover:scale-105 transition-transform w-full" onClick={(e) => { e.preventDefault(); window.location.href = "/turfs"; }}>
                       Explore Turfs
                       <MapPin className="ml-2 h-4 w-4" />
                     </Button>
-                  </Link>
+                  </div>
                 </div>
-              </div>
+              </Link>
             </div>
 
             {/* View Bookings Card */}
